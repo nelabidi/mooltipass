@@ -9,5 +9,5 @@ cp -Rf vendor Mooltipass.safariextension/
 cp -Rf background Mooltipass.safariextension/
 cp -Rf images Mooltipass.safariextension/
 cp -Rf css Mooltipass.safariextension/
-
+cp -Rf popups Mooltipass.safariextension/
 python updateSafariVersion.py
