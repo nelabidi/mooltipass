@@ -3,7 +3,8 @@ var isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
 
 // contains already called method names
 var _called = {};
-var background_debug_msg = (chrome.runtime && !('update_url' in chrome.runtime.getManifest()))? 55 : false;
+//Enable debug messages only for chrome now
+var background_debug_msg = (chrome && chrome.runtime && !('update_url' in chrome.runtime.getManifest()))? 55 : false;
 
 var mpDebug = {
     css: function( backgroundColor ) {

@@ -15,7 +15,8 @@ function messaging( message ) {
 // contains already called method names
 var _called = {};
 
-var content_debug_msg = (chrome.runtime && !('update_url' in chrome.runtime.getManifest()))? 55 : false;;
+//Enable debug messages only for chrome now
+var content_debug_msg = (chrome && chrome.runtime && !('update_url' in chrome.runtime.getManifest()))? 55 : false;;
 
 var cipDebug = {};
 if (content_debug_msg) {
@@ -27,7 +28,6 @@ if (content_debug_msg) {
 	cipDebug.trace = console.trace.bind(window.console);
 	cipDebug.error = console.error.bind(window.console);
 } else {
-	cipDebug.log = function() {}
 	cipDebug.log = function() {}
 	cipDebug.warn = function() {}
 	cipDebug.trace = function() {}
