@@ -1,13 +1,11 @@
 
 // Unify messaging method - And eliminate callbacks (a message is replied with another message instead)
 function messaging( message, tab, callback ) {
-	if (background_debug_msg > 5) mpDebug.log('%c Sending message to content:','background-color: #0000FF; color: #FFF; padding: 3px; ', message);
+	if (background_debug_msg > 5) mpDebug.log('%c Sending message to content:','background-color: #0000FF; color: #FFF; padding: 3px; ', message, tab);
 	else if (background_debug_msg > 4 && message.action != 'check_for_new_input_fields') mpDebug.log('%c Sending message to content:','background-color: #0000FF; color: #FFF; padding: 3px; ', message);
 
-	console.log('%c Sending message to content:','background-color: #0000FF; color: #FFF; padding: 3px; ', message);
-
 	if ( isSafari ) {
-		console.log( tab, tab.page );
+		//console.log( tab, tab.page );
 		if ( tab && tab.page ) tab.page.dispatchMessage("messageFromBackground", message);
 		else mooltipassEvent.onMessage( { message: message } , 1, tab);
 	} else chrome.tabs.sendMessage( typeof(tab) == 'number'?tab:tab.id, message, function(response) {});
@@ -44,12 +42,19 @@ mooltipassEvent.onMessage = function( request, sender, callback ) {
 		tab = sender;
 	} else { // Chrome and FF sends Request and Sender separately
 		tab = sender.tab;
+
+		/* trade lightly below: for getStatus message ONLY we allow overwrite of the current tab object as the sender url is marked as "chrome-extension://" */
+		/* worst case: another extension may ask if a given website is blacklisted */
+		if (request.action == 'get_status' && (sender.url.startsWith("chrome-extension://") || sender.url.startsWith("moz-extension://")))
+		{
+			tab = request.overwrite_tab;
+		}
 	}
 
-	if (background_debug_msg > 4) mpDebug.log('%c mooltipassEvent: onMessage ' + request.action, mpDebug.css('e2eef9'), tab, arguments);
+	if (background_debug_msg > 4) mpDebug.log('%c mooltipassEvent: onMessage ' + request.action, mpDebug.css('e2eef9'), sender);
 
 	if (request.action in mooltipassEvent.messageHandlers) {
-		if ( tab ) {
+		if ( tab && request.action !== 'get_status' ) {
 			var callback = function( data, tab ) {
 				messaging( { 'action': 'response-' + request.action, 'data': data }, tab );
 			};	
@@ -83,7 +88,7 @@ mooltipassEvent.invoke = function(handler, callback, senderTab, args, secondTime
 	// Preppend the tab and the callback function to the arguments list
 	args.unshift(senderTab);
 	args.unshift(callback);
-	console.log( handler );
+	//console.log( handler );
 	handler.apply(this, args);
 	return;
 }
@@ -119,8 +124,6 @@ mooltipassEvent.onSaveSettings = function(callback, tab, settings) {
 }
 
 mooltipassEvent.onGetStatus = function(callback, tab) {
-	if (background_debug_msg > 5) mpDebug.log('%c mooltipassEvent: %c onGetStatus','background-color: #e2eef9','color: #246', tab);
-
 	if ( tab ) {
 		browserAction.showDefault(null, tab);
     	page.tabs[tab.id].errorMessage = undefined;  // XXX debug
@@ -137,6 +140,7 @@ mooltipassEvent.onGetStatus = function(callback, tab) {
     	toReturn.blacklisted = tabStatus.blacklisted;
     }
 
+    if (background_debug_msg > 5) mpDebug.log('%c mooltipassEvent: %c onGetStatus','background-color: #e2eef9','color: #246', tab, toReturn);
 	callback( toReturn );
 }
 
@@ -239,7 +243,7 @@ mooltipassEvent.isMooltipassUnlocked = function()
 	var noteId = 'mpNotUnlocked.'+mooltipassEvent.notificationCount.toString();
 
 	// Check that the Mooltipass app is installed and enabled
-	if (!mooltipass.device._app || mooltipass.device._app['enabled'] !== true)
+	if (!mooltipass.device.connectedToExternalApp && (!mooltipass.device._app || mooltipass.device._app['enabled'] !== true))
 	{
 		//console.log('notify: mooltipass app not ready');
 
@@ -499,8 +503,8 @@ mooltipassEvent.onMultipleFieldsPopup = function(callback, tab) {
  *
  */
 mooltipassEvent.showApp = function() {
-	console.log('here');
-	if (moolticute.connectedToDaemon) {
+
+	if (mooltipass.device.isConnectedToExternalApp()) {
 		moolticute.sendRequest( {"msg": "show_app"} );
 	} else {
 		var global = chrome.extension.getBackgroundPage();

@@ -20,19 +20,23 @@ function initSettings() {
         // Safari new method requires this to open a link
         mpJQ('#btn-link').click(function() {
             safari.application.activeBrowserWindow.openTab().url = "http://themooltipass.com/";
-            return false;
         });
     }
+
+    mpJQ(".pure-menu-list .pure-menu-item").click(function() {
+        if (isSafari) {
+            safari.self.hide();
+        }
+    });
 
     mpJQ("#btn-settings").click(function( e ) {
         if ( isSafari ) {
             e.preventDefault();
             safari.application.activeBrowserWindow.openTab().url = safari.extension.baseURI + "options/options.html";
-            return false;
         } else {
             chrome.tabs.create({
                 url: "/options/options.html"
-            });    
+            });
         }
     });
 
@@ -42,10 +46,10 @@ function initSettings() {
         if ( !isSafari ) close();
     });
 
-    mpJQ("#btn-report-error").click(function() {
+    mpJQ("#btn-report-error").click(function(e) {
         if ( isSafari ) {
+            e.preventDefault();
             safari.application.activeBrowserWindow.openTab().url = "https://docs.google.com/forms/d/1lFKaTR3LQxySyGsZwtHudVE6aGErGU2DHfn-YpuW8aE/viewform?entry.449375470=" + safari.application.activeBrowserWindow.activeTab.url;
-            return false;
         } else {
             mooltipass.website.reportError( function(target_url){
                 chrome.tabs.create({
@@ -63,7 +67,7 @@ function initSettings() {
         } else {
             var global = chrome.extension.getBackgroundPage();
             mooltipass.website.chooseCredentialFields();
-            close();    
+            close();
         }
     });
 
@@ -78,24 +82,31 @@ function initSettings() {
                     action: 'blacklist_url',
                     args: [tabs[0].url]
                 }, function() {});
+                close();
             });
-            close();    
         }
     });
 
-    mpJQ("#btn-remove-site-from-blacklist").click(function() {
-        chrome.tabs.query({currentWindow: true, active: true}, function(tabs) {
-            chrome.runtime.sendMessage({
-                action: 'unblacklist_url',
-                args: [tabs[0].url]
-            }, function() {});
-        });
-        close();
+    mpJQ("#btn-remove-site-from-blacklist").click(function(e) {
+        if ( isSafari ) {
+            e.preventDefault();
+            var message = { action: "unblacklist_url", args: [safari.application.activeBrowserWindow.activeTab.url] };
+            messaging( message, function() {} );
+        } else {
+            chrome.tabs.query({currentWindow: true, active: true}, function(tabs) {
+                chrome.runtime.sendMessage({
+                    action: 'unblacklist_url',
+                    args: [tabs[0].url]
+                }, function() {});
+                close();
+            });
+        }
     });
 }
 
 function getStatusCallback( object ) {
      mpJQ('#status-bar .status > span').hide();
+     console.log(object)
 
     // Connection to app established, device connected and unlocked
     if (object.status.deviceUnlocked && object.status.connectedToDevice && object.status.connectedToApp) {
@@ -129,9 +140,16 @@ function getStatusCallback( object ) {
 
 function updateStatusInfo() {
     if( isSafari ) {
-        if ( safari.extension.globalPage ) safari.extension.globalPage.contentWindow.mooltipassEvent.onGetStatus(getStatusCallback, { id: 'safari' });
+        if ( safari.extension.globalPage && safari.extension.globalPage.contentWindow.mooltipassEvent) {
+            safari.extension.globalPage.contentWindow.mooltipassEvent.onGetStatus(getStatusCallback, {
+                id: 'safari',
+                url: safari.application.activeBrowserWindow.activeTab.url
+            });
+        }
     } else {
-        messaging( { action: "get_status" }, getStatusCallback );    
+        chrome.tabs.query({currentWindow: true, active: true}, function(tabs) {
+            messaging( { action: "get_status", overwrite_tab: tabs[0] }, getStatusCallback);
+        }); 
 
         if ( typeof chrome.notifications.getPermissionLevel == 'function' ) {
             // Check if notifications are enabled
@@ -139,9 +157,9 @@ function updateStatusInfo() {
                 if (response == 'denied') {
                     mpJQ("#notifications-disabled").show();
                 }
-            });        
+            });
         }
-    }    
+    }
 }
 
 function _updateStatusInfo() {

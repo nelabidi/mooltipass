@@ -3,8 +3,7 @@ var isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
 
 // contains already called method names
 var _called = {};
-//Enable debug messages only for chrome now
-var background_debug_msg = (chrome && chrome.runtime && !('update_url' in chrome.runtime.getManifest()))? 55 : false;
+var background_debug_msg = (window.chrome && chrome.runtime && !('update_url' in chrome.runtime.getManifest()))? 55 : false;
 
 var mpDebug = {
     css: function( backgroundColor ) {
@@ -50,16 +49,21 @@ mooltipass.backend.disableNonUnlockedNotifications = false;
 
 
 mooltipass.backend.setStatusIcon = function(icon_name) {
-    if ( isFirefox ) {
-        var theFunction = browser.browserAction.setIcon;    
+    if (isSafari) {
+        var theFunction = function(newIcon) {
+            var iconUri = safari.extension.baseURI.replace(/\/$/, "") + newIcon.path;
+            safari.extension.toolbarItems[0].image = iconUri;
+        };
+    } else if ( isFirefox ) {
+        var theFunction = browser.browserAction.setIcon;
     } else {
         var theFunction = chrome.browserAction.setIcon;
     }
-    
+
     theFunction({
         tabId: page.currentTabId,
         path: "/images/icon_" + icon_name + "_19.png"
-    });    
+    });
 }
 
 mooltipass.backend.updateStatusIcon = function() {
@@ -69,7 +73,7 @@ mooltipass.backend.updateStatusIcon = function() {
     } else {
         iconName = "cross";
     }
-    
+
     if ( !isSafari ) {
         if ( typeof chrome.notifications.getPermissionLevel == 'function') {
             chrome.notifications.getPermissionLevel(function(response) {
@@ -78,10 +82,9 @@ mooltipass.backend.updateStatusIcon = function() {
                 }
             });  
         }
-        mooltipass.backend.setStatusIcon(iconName);
     }
-    
-    
+
+    mooltipass.backend.setStatusIcon(iconName);
 }
 mooltipass.backend._updateStatusIcon = function() {
     mooltipass.backend.updateStatusIcon();
@@ -114,13 +117,12 @@ mooltipass.backend.isBlacklisted = function(url) {
  */
 mooltipass.backend.blacklistUrl = function(url) {
     if (background_debug_msg > 4) mpDebug.log('%c backend: %c got blacklist req. for ','background-color: #ffc107','color: #000', url);
-    console.log('here', url );
+
     if(url.indexOf('://') > -1) {
         var parsed_url = mooltipass.backend.extractDomainAndSubdomain(url);
         var subdomain;
         var domain;
 
-        console.log( parsed_url.valid );
         // See if our script detected a valid domain & subdomain
         if(!parsed_url.valid)
         {
@@ -137,7 +139,7 @@ mooltipass.backend.blacklistUrl = function(url) {
         }
     }
 
-    console.log( mooltipass.backend._blacklist );
+    //console.log( mooltipass.backend._blacklist );
 
     mooltipass.backend._blacklist[url] = true;
     localStorage.mpBlacklist = JSON.stringify(mooltipass.backend._blacklist);

@@ -14,8 +14,10 @@ moolticute.status = {
         flash_size: 0,
         hw_version: '0'
     },
-    state: 'UnknownStatus',     //state for mooltipass ext compat
-    realState: 'UnknownStatus'
+    state: 'unknown',           //state for mooltipass ext compat
+    realState: 'unknown',
+    middleware: 'unknown',
+    middleware_version: 'unknown'
 }
 
 moolticute.connectedToDaemon = false;
@@ -31,6 +33,23 @@ moolticute._currCallbackId = 0;
     Set to false for normal operation or timeout in millisecs
 */
 moolticute.delayResponse = false;
+
+
+moolticute.resetCurrentStatus = function()
+{
+    moolticute.status = {
+        connected: false,
+        unlocked: false,
+        version: {
+            flash_size: 0,
+            hw_version: '0'
+        },
+        state: 'unknown',       //state for mooltipass ext compat
+        realState: 'unknown',
+        middleware: 'unknown',
+        middleware_version: 'unknown'
+    }
+}
 
 moolticute._getCallbackId = function() {
     moolticute._currCallbackId += 1;
@@ -171,8 +190,8 @@ moolticute.websocket = {
     _ws: false,
     onOpen: function() {
         if (background_debug_msg > 2) mpDebug.log('%c Moolticute daemon connected', mpDebug.css('FFC6A0'));
+        mooltipass.device.switchToExternalApp();
         moolticute.connectedToDaemon = true;
-        moolticute.sendRequest( { ping: [] } );
         //moolticute.fireEvent('statusChange');
 
         this.tries = 0;
@@ -180,15 +199,11 @@ moolticute.websocket = {
     onClose: function( event  ) {
         if (background_debug_msg > 2) mpDebug.log('%c Moolticute daemon disconnected', mpDebug.css('FFC6A0'), this);
 
+        mooltipass.device.switchToInternalApp();
         moolticute.connectedToDaemon = false;        
         moolticute.status.unlocked = false;
-        moolticute.fireEvent('statusChange');
-
-        if ( mooltipass && mooltipass.device && mooltipass.device.usingApp === false ) 
-        {
-            mooltipass.device.retrieveCredentialsQueue = [];
-            mooltipass.device.wasPreviouslyUnlocked = false;
-        }
+        moolticute.resetCurrentStatus();
+        //moolticute.fireEvent('statusChange');
 
         this.tries = this.tries > 3?this.tries:this.tries + 1;
 
@@ -208,55 +223,16 @@ moolticute.websocket = {
             return;
         }
 
-        if (recvMsg.deviceStatus != null) 
-        {
-            mooltipass.device._status = 
-            {
-                'connected': recvMsg.deviceStatus.connected,
-                'unlocked': recvMsg.deviceStatus.unlocked,
-                'version': recvMsg.deviceStatus.version,
-                'state' : recvMsg.deviceStatus.state,
-                'middleware' : recvMsg.deviceStatus.middleware?recvMsg.deviceStatus.middleware:'unknown'
-            };
-            if (!recvMsg.deviceStatus.connected)
-            {
-                    mooltipass.device.retrieveCredentialsQueue = [];            
-            }
-            else
-            {
-                if (!recvMsg.deviceStatus.unlocked)
-                {
-                    if (mooltipass.device.wasPreviouslyUnlocked == true)
-                    {
-                        // Cancel pending requests
-                        mooltipass.device.retrieveCredentialsQueue = [];
-                    }
-                    mooltipass.device.wasPreviouslyUnlocked = false;
-                }
-                else
-                {
-                    // In case we have pending messages in the queue
-                    if ((mooltipass.device.wasPreviouslyUnlocked == false) && (mooltipass.device.retrieveCredentialsQueue.length > 0))
-                    {
-                        moolticute.askPassword({
-                            'reqid': mooltipass.device.retrieveCredentialsQueue[0].reqid, 
-                            'domain': mooltipass.device.retrieveCredentialsQueue[0].domain, 
-                            'subdomain': mooltipass.device.retrieveCredentialsQueue[0].subdomain
-                        });
-                    }                
-                    mooltipass.device.wasPreviouslyUnlocked = true;
-                }            
-            }
-            //console.log(mooltipass.device._status)
-        }
-
+        // Translate message to what device.js message parser can understand
         recvMsg = this.messageTranslator( recvMsg );
-        // Some messages are processed internally (like status messages from Chrome App)
-        if ( !recvMsg ) return;
 
+        // Create wrapper
         var wrapped = {};
 
-        switch( recvMsg.msg ) {
+        switch(recvMsg.msg ) {
+            case 'device_status':
+                wrapped.deviceStatus = recvMsg.data;
+                break;
             case 'mp_connected':
                 moolticute.status.connected = true;
                 wrapped.deviceStatus = moolticute.status;
@@ -300,6 +276,10 @@ moolticute.websocket = {
             case 'get_random_numbers':
                 wrapped.random = recvMsg.data;
                 break;
+            case 'get_application_id':
+                moolticute.status.middleware = recvMsg.data.application_name;
+                moolticute.status.middleware_version = recvMsg.data.application_version;
+                wrapped.deviceStatus = moolticute.status;
             case 'show_app':
                 // Just discard response, as we don't need it.
                 break;
@@ -325,12 +305,13 @@ moolticute.websocket = {
     messageTranslator: function( msg ) {
         var output = { data: {} };
         if ( msg.deviceStatus ) {
+            output.msg = 'device_status';
+            output.data = msg.deviceStatus;
             moolticute.status.connected = msg.deviceStatus.connected;
-            moolticute.status.unlocked = msg.deviceStatus.state == 'Unlocked'?true:false;
-            moolticute.status.version = msg.deviceStatus.version;
+            moolticute.status.unlocked = msg.deviceStatus.unlocked;
+            moolticute.status.version = {hw_version: msg.deviceStatus.version};
             moolticute.status.state = msg.deviceStatus.state;
-            mooltipass.device._status = moolticute.status;
-            return false;
+            moolticute.status.middleware = msg.deviceStatus.middleware;
         } else if ( msg.command && msg.command == 'getCredentials' ) {
             output.msg = 'ask_password';
             output.data.failed = msg.success?false:true;
