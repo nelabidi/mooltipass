@@ -61,10 +61,10 @@
 			<array>
 				<string>vendor/jquery-2.1.4.js</string>
 				<string>vendor/jquery-ui-1.11.4.custom/jquery-ui.js</string>
-				<string>vendor/mooltipass/mcCombinations.js</string>
 				<string>vendor/sendkeys.js</string>
-				<string>vendor/mooltipass/website.js</string>
-				<string>mooltipass-content.js</string>
+				<string>content/mcCombinations.js</string>
+				<string>content/website.js</string>
+				<string>content/mooltipass-content.js</string>
 			</array>
 		</dict>
 		<key>Stylesheets</key>

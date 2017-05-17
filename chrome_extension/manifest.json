@@ -24,6 +24,7 @@
     "scripts": [
       "vendor/seedrandom.js",
       "vendor/psl.min.js",
+      "shared/Debug.js",
       "background/mooltipass/backend.js",
       "background/mooltipass/moolticute.js",
       "background/mooltipass/device.js",
@@ -41,9 +42,11 @@
         "vendor/jquery-2.1.4.js",
         "vendor/jquery-ui-1.11.4.custom/jquery-ui.js",
         "vendor/sendkeys.js",
+        "content/mcCombinations.js",
+        "content/website.js",  
         "content/mooltipass-content.js"
       ],
-      "css": ["vendor/bootstrap-btn.css", "mooltipass-content.css"],
+      "css": ["vendor/bootstrap-btn.css", "content/mooltipass-content.css"],
       "run_at": "document_idle",
       "all_frames": true
     }

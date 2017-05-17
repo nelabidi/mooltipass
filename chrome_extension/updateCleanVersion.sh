@@ -229,8 +229,10 @@ function _clean_wd()
 function _inject_scripts()
 {
     # Inject Scripts
-    cp "${CWD}/mooltipass-content.js" "${OUTPUT_DIR}/mooltipass-content.js"
-    cp "${CWD}/mooltipass-content.css" "${OUTPUT_DIR}/mooltipass-content.css"
+    mkdir -p ${OUTPUT_DIR}/content
+    cp "${CWD}/content/mooltipass-content.js" "${OUTPUT_DIR}/content/mooltipass-content.js"
+    cp "${CWD}/content/mooltipass-content.css" "${OUTPUT_DIR}/content/mooltipass-content.css"
+    cp "${CWD}/content/website.js" "${OUTPUT_DIR}/content/website.js"
     cp "${CWD}/manifest.json" "${OUTPUT_DIR}/"
 
     for ext_dir in vendor popups css options background images icons; do

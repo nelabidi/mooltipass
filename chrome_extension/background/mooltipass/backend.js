@@ -3,36 +3,18 @@ var isFirefox = navigator.userAgent.toLowerCase().indexOf('firefox') > -1;
 
 // contains already called method names
 var _called = {};
-var background_debug_msg = (window.chrome && chrome.runtime && !('update_url' in chrome.runtime.getManifest()))? 55 : false;
 
-var mpDebug = {
-    css: function( backgroundColor ) {
-        return 'background-color: #' + backgroundColor + '; padding: 3px 10px;';
-    }
-};
+//TODO: add diagnostic option to select logging level, for now we set
+//set logging level to VERBOSE if we are running under chrome
+var background_debug_msg = (window.chrome && chrome.runtime && !('update_url' in chrome.runtime.getManifest()))? DEBUG_LEVEL.VERBOSE : false;
 
-if (background_debug_msg) {
-    mpDebug.log = function( message ) {
-        this.log( message );
-    }
-    mpDebug.log = console.log.bind(window.console);
-    mpDebug.warn = console.warn.bind(window.console);
-    mpDebug.trace = console.trace.bind(window.console);
-    mpDebug.error = console.error.bind(window.console);
-} else {
-    mpDebug.log = function() {}
-    mpDebug.log = function() {}
-    mpDebug.warn = function() {}
-    mpDebug.trace = function() {}
-    mpDebug.error = function() {}
-}
+var mpDebug = new Debug(background_debug_msg);
 
 /* Initialize mooltipass lib */
 if (typeof mooltipass == 'undefined') {
     mooltipass = {};
 }
 mooltipass.backend = mooltipass.backend || {};
-
 
 /**
  * Stored blacklisted websites
@@ -45,7 +27,6 @@ mooltipass.backend._blacklist = typeof(localStorage.mpBlacklist)=='undefined' ? 
  * TODO: add this parameter to the settings dialog and let the user decide
  */
 mooltipass.backend.disableNonUnlockedNotifications = false;
-
 
 
 mooltipass.backend.setStatusIcon = function(icon_name) {
@@ -106,7 +87,7 @@ mooltipass.backend.loadSettings = function() {
  * @returns {boolean}
  */
 mooltipass.backend.isBlacklisted = function(url) {
-    if (background_debug_msg > 4) mpDebug.log('%c backend: %c isBlacklisted ','background-color: #ffc107','color: #000', url, url in mooltipass.backend._blacklist);
+    mpDebug.trace('%c backend: %c isBlacklisted ','background-color: #ffc107','color: #000', url, url in mooltipass.backend._blacklist);
     return url in mooltipass.backend._blacklist;
 }
 
@@ -116,7 +97,7 @@ mooltipass.backend.isBlacklisted = function(url) {
  * @param url
  */
 mooltipass.backend.blacklistUrl = function(url) {
-    if (background_debug_msg > 4) mpDebug.log('%c backend: %c got blacklist req. for ','background-color: #ffc107','color: #000', url);
+    mpDebug.trace('%c backend: %c got blacklist req. for ','background-color: #ffc107','color: #000', url);
 
     if(url.indexOf('://') > -1) {
         var parsed_url = mooltipass.backend.extractDomainAndSubdomain(url);
@@ -126,7 +107,7 @@ mooltipass.backend.blacklistUrl = function(url) {
         // See if our script detected a valid domain & subdomain
         if(!parsed_url.valid)
         {
-            if (background_debug_msg > 4) mpDebug.log('%c backend: %c Invalid URL for blacklisting given','background-color: #ffc107','color: #000', url);
+            mpDebug.trace('%c backend: %c Invalid URL for blacklisting given','background-color: #ffc107','color: #000', url);
             return;
         }
 
@@ -146,10 +127,10 @@ mooltipass.backend.blacklistUrl = function(url) {
 };
 
 mooltipass.backend.handlerBlacklistUrl = function(callback, tab, url) {
-    if (background_debug_msg > 4) mpDebug.log('%c backend: %c handlerBlacklistUrl','background-color: #ffc107','color: #000', url);
+    mpDebug.trace('%c backend: %c handlerBlacklistUrl','background-color: #ffc107','color: #000', url);
     mooltipass.backend.blacklistUrl(url);
     callback(true);
-    if (background_debug_msg > 4) mpDebug.log('%c backend: %c updated blacklist store ','background-color: #ffc107','color: #000', url);
+    mpDebug.trace('%c backend: %c updated blacklist store ','background-color: #ffc107','color: #000', url);
 }
 
 /**
@@ -158,7 +139,7 @@ mooltipass.backend.handlerBlacklistUrl = function(callback, tab, url) {
  * @param url
  */
 mooltipass.backend.unblacklistUrl = function(url) {
-    if (background_debug_msg > 4) mpDebug.log('%c backend: %c got blacklist removal req. for','background-color: #ffc107','color: #000', url);
+    mpDebug.trace('%c backend: %c got blacklist removal req. for','background-color: #ffc107','color: #000', url);
 
     if(url.indexOf('://') > -1) {
         var parsed_url = mooltipass.backend.extractDomainAndSubdomain(url);
@@ -168,7 +149,7 @@ mooltipass.backend.unblacklistUrl = function(url) {
         // See if our script detected a valid domain & subdomain
         if(!parsed_url.valid)
         {
-            if (background_debug_msg > 4) mpDebug.log('%c backend: %c Invalid URL for blacklisting given:','background-color: #ffc107','color: #000', url);
+            mpDebug.trace('%c backend: %c Invalid URL for blacklisting given:','background-color: #ffc107','color: #000', url);
             return;
         }
 
@@ -183,7 +164,7 @@ mooltipass.backend.unblacklistUrl = function(url) {
 
     delete mooltipass.backend._blacklist[url];
     localStorage.mpBlacklist = JSON.stringify(mooltipass.backend._blacklist);
-    if (background_debug_msg > 4) mpDebug.log('%c backend: %c updated blacklist store ','background-color: #ffc107','color: #000', url);
+    mpDebug.trace('%c backend: %c updated blacklist store ','background-color: #ffc107','color: #000', url);
 };
 
 mooltipass.backend.handlerUnBlacklistUrl = function(callback, tab, url) {
@@ -198,7 +179,7 @@ mooltipass.backend.handlerUnBlacklistUrl = function(callback, tab, url) {
  * @returns {{valid: {boolean}, domain: {string|null}, subdomain: {string|null}}}
  */
 mooltipass.backend.extractDomainAndSubdomain = function ( url ) {
-    if (background_debug_msg > 4) mpDebug.log('%c backend: %c extractDomainAndSubdomain ','background-color: #ffc107','color: #000', url);
+    mpDebug.trace('%c backend: %c extractDomainAndSubdomain ','background-color: #ffc107','color: #000', url);
 
     var toReturn = { url: url, valid: false, domain: null, subdomain: null, blacklisted: false };
     

@@ -2,8 +2,9 @@
 
 # Inject Scripts
 
-cp mooltipass-content.js Mooltipass.safariextension/mooltipass-content.js
-cp mooltipass-content.css Mooltipass.safariextension/mooltipass-content.css
+cp content/mooltipass-content.js Mooltipass.safariextension/content/mooltipass-content.js
+cp content/mooltipass-content.css Mooltipass.safariextension/content/mooltipass-content.css
+cp content/website.js Mooltipass.safariextension/content/website.js
 cp -Rf options Mooltipass.safariextension/ 
 cp -Rf vendor Mooltipass.safariextension/
 cp -Rf background Mooltipass.safariextension/
